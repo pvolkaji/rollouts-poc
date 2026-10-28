@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: alb-demo
+spec:
+  replicas: 4
+  revisionHistoryLimit: 2
+
+  selector:
+    matchLabels:
+      app: alb-demo
+
+  template:
+    metadata:
+      labels:
+        app: alb-demo
+    spec:
+      containers:
+        - name: app
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+
+  strategy:
+    canary:
+      stableService: alb-demo-stable
+      canaryService: alb-demo-canary
+
+      trafficRouting:
+        alb:
+          ingress: alb-demo
+          rootService: alb-demo-root
+          servicePort: 80
+
+      steps:
+        - setWeight: 10
+        - pause: {}          # Manual approval at 10%
+        - setWeight: 50
+        - pause:
+            duration: 60s
+        - setWeight: 100
